@@ -1,0 +1,8 @@
+.venv/
+.jupyter/
+__pycache__/
+.ipynb_checkpoints/
+
+data/*.parquet
+artifacts/**
+!artifacts/.gitkeep
