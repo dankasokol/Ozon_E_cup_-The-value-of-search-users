@@ -1,8 +1,13 @@
 .venv/
 .jupyter/
+.legacy_backup/
+.DS_Store
 __pycache__/
 .ipynb_checkpoints/
 
 data/*.parquet
 artifacts/**
 !artifacts/.gitkeep
+!artifacts/monetary_cadence/
+artifacts/monetary_cadence/*
+!artifacts/monetary_cadence/control_validation_predictions.parquet

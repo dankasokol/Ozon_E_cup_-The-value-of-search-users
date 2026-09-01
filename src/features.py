@@ -1,7 +1,6 @@
 """Построение пользовательских временных срезов и признаков."""
 
 from datetime import date, timedelta
-from pathlib import Path
 
 import polars as pl
 
@@ -392,24 +391,3 @@ def _add_enhanced_v2_features(
         )
     )
     return snapshot.with_columns(derived_exprs)
-
-
-def save_snapshot(snapshot: pl.DataFrame, directory: Path, anchor: date, kind: str) -> Path:
-    """Сохраняет рассчитанный срез в формат Parquet для повторного использования."""
-    path = directory / f"{kind}_{anchor.isoformat()}.parquet"
-    snapshot.write_parquet(path, compression="zstd")
-    return path
-
-
-def load_snapshots(directory: Path, kind: str = "train") -> dict[date, pl.DataFrame]:
-    """Загружает сохранённые пользовательские срезы, индексируя их по дате якоря."""
-    prefix = f"{kind}_"
-    paths = sorted(directory.glob(f"{kind}_*.parquet"))
-    if not paths:
-        raise FileNotFoundError(f"В {directory} нет срезов с префиксом {prefix}")
-
-    snapshots: dict[date, pl.DataFrame] = {}
-    for path in paths:
-        anchor = date.fromisoformat(path.stem.removeprefix(prefix))
-        snapshots[anchor] = pl.read_parquet(path)
-    return snapshots

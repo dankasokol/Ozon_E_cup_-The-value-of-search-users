@@ -1,6 +1,6 @@
-"""Единые пути и параметры первого CatBoost-эксперимента."""
+"""Единые пути и общие параметры итогового решения."""
 
-from datetime import date
+import os
 from pathlib import Path
 
 
@@ -9,49 +9,44 @@ DATA_DIR = PROJECT_ROOT / "data"
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
 SUBMISSIONS_DIR = PROJECT_ROOT / "submissions"
 
+# Большие рабочие Parquet нельзя хранить на синхронизируемом Рабочем столе:
+# при нехватке места macOS превращает их в облачные указатели без локального
+# содержимого. Путь можно переопределить переменной OZON_GMV_RUNTIME_DIR.
+LOCAL_RUNTIME_DIR = Path(
+    os.environ.get(
+        "OZON_GMV_RUNTIME_DIR",
+        str(Path.home() / "Library" / "Caches" / "Ozon_GMV"),
+    )
+)
+
 TRAIN_PATH = DATA_DIR / "train.parquet"
-FIRST_CATBOOST_ARTIFACT_DIR = ARTIFACTS_DIR / "first_catboost_ltv"
-FIRST_CATBOOST_SNAPSHOT_DIR = FIRST_CATBOOST_ARTIFACT_DIR / "snapshots"
-FIRST_CATBOOST_SUBMISSION_PATH = SUBMISSIONS_DIR / "submission_first_catboost.csv"
-MULTIFOLD_VALIDATION_DIR = ARTIFACTS_DIR / "multifold_validation"
-CATBOOST_V2_ARTIFACT_DIR = ARTIFACTS_DIR / "catboost_v2"
-CATBOOST_V2_SNAPSHOT_DIR = CATBOOST_V2_ARTIFACT_DIR / "snapshots"
-CATBOOST_V2_SUBMISSION_PATH = SUBMISSIONS_DIR / "submission_catboost_v2.csv"
-CATBOOST_TUNING_DIR = ARTIFACTS_DIR / "catboost_tuning"
-CATBOOST_REGULARIZATION_DIR = CATBOOST_TUNING_DIR / "regularization"
-CATBOOST_RSM_DIR = CATBOOST_TUNING_DIR / "rsm"
-CATBOOST_SEASONALITY_DIR = ARTIFACTS_DIR / "year_over_year_seasonality"
-CATBOOST_CORRECTION_DIR = ARTIFACTS_DIR / "seasonal_correction"
-FINAL_SUBMISSION_ARTIFACT_DIR = ARTIFACTS_DIR / "final_submission"
-DEPTH6_SUBMISSION_PATH = SUBMISSIONS_DIR / "submission_depth6_822.csv"
-SEASONAL_SUBMISSION_PATH = (
-    SUBMISSIONS_DIR / "submission_depth6_822_seasonal_correction.csv"
+FINAL_SOLUTION_DIR = ARTIFACTS_DIR / "final_solution"
+FINAL_SOLUTION_CACHE_DIR = LOCAL_RUNTIME_DIR / "final_solution_cache"
+FINAL_SUBMISSION_PATH = SUBMISSIONS_DIR / "submission_annual_cadence_blend.csv"
+
+# Денежный слой выбранного итогового решения.
+MONETARY_CADENCE_DIR = LOCAL_RUNTIME_DIR / "monetary_cadence"
+MONETARY_CADENCE_PROFILE_DIR = MONETARY_CADENCE_DIR / "profiles"
+MONETARY_CADENCE_CONTROL_SOURCE_PATH = (
+    ARTIFACTS_DIR / "monetary_cadence" / "control_validation_predictions.parquet"
+)
+MONETARY_CADENCE_CONTROL_PATH = (
+    MONETARY_CADENCE_DIR / "control_validation_predictions.parquet"
+)
+MONETARY_CADENCE_SUBMISSION_PATH = (
+    SUBMISSIONS_DIR / "submission_monetary_cadence.csv"
+)
+MONETARY_CADENCE_BLEND_SUBMISSION_PATH = (
+    SUBMISSIONS_DIR / "submission_monetary_cadence_blend.csv"
 )
 
 RANDOM_SEED = 42
 HORIZON_DAYS = 30
-ANCHOR_STEP_DAYS = 28
-N_HISTORY_ANCHORS = 8
 HISTORY_DAYS = 180
-VALIDATION_ANCHORS = (
-    date(2025, 10, 22),
-    date(2025, 11, 19),
-    date(2025, 12, 17),
-    date(2026, 1, 14),
-)
 
 
 def ensure_output_dirs() -> None:
-    """Создаёт каталоги для производных результатов, но не для исходных данных."""
-    FIRST_CATBOOST_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    FIRST_CATBOOST_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-    MULTIFOLD_VALIDATION_DIR.mkdir(parents=True, exist_ok=True)
-    CATBOOST_V2_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    CATBOOST_V2_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-    CATBOOST_TUNING_DIR.mkdir(parents=True, exist_ok=True)
-    CATBOOST_REGULARIZATION_DIR.mkdir(parents=True, exist_ok=True)
-    CATBOOST_RSM_DIR.mkdir(parents=True, exist_ok=True)
-    CATBOOST_SEASONALITY_DIR.mkdir(parents=True, exist_ok=True)
-    CATBOOST_CORRECTION_DIR.mkdir(parents=True, exist_ok=True)
-    FINAL_SUBMISSION_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    """Создаёт каталоги итогового решения и активного опыта."""
+    FINAL_SOLUTION_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    MONETARY_CADENCE_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
     SUBMISSIONS_DIR.mkdir(parents=True, exist_ok=True)

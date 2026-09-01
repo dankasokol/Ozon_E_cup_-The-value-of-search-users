@@ -1,0 +1,7 @@
+catboost==1.2.10
+ipykernel==7.3.0
+nbconvert==7.17.1
+numpy==2.5.2
+pandas==3.0.5
+polars==1.43.2
+pyarrow==25.0.1
