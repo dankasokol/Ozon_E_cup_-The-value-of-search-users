@@ -1,8 +1,7 @@
-"""Самодостаточный конвейер текущего финального решения Ozon GMV.
+"""Подготовка признаков и обучение контрольного уровня решения Ozon GMV.
 
-Из исходного ``data/train.parquet`` модуль строит все необходимые временные
-срезы и профили, обучает две модели CatBoost и сохраняет их логарифмическую
-смесь. Никакие артефакты отклонённых экспериментов не требуются.
+Модуль строит временные срезы и профили, обучает две модели CatBoost и
+сохраняет их смесь в логарифмической шкале.
 """
 
 from __future__ import annotations
@@ -199,7 +198,7 @@ def prepare_final_inputs(
         _validate_input_contract(paths)
         return paths
 
-    print("[1/5] Получаю исходные события")
+    print("[1/5] Исходные события")
     if data is None:
         data = load_train(train_path)
     if users is None:
@@ -207,7 +206,7 @@ def prepare_final_inputs(
     if users.height != 250_000:
         raise AssertionError(f"Ожидалось 250 000 пользователей: {users.height}")
 
-    print("[2/5] Строю девять базовых временных срезов")
+    print("[2/5] Девять базовых временных срезов")
     for index, anchor in enumerate(ALL_ANCHORS, start=1):
         path = paths.snapshots[anchor]
         if rebuild or not path.exists():
@@ -223,7 +222,7 @@ def prepare_final_inputs(
             del snapshot
             gc.collect()
 
-    print("[3/5] Строю два сезонных профиля")
+    print("[3/5] Два сезонных профиля")
     for anchor, path in paths.seasonal_profiles.items():
         if rebuild or not path.exists():
             profile, _ = build_seasonal_analog_profile(data, users, anchor)
@@ -231,7 +230,7 @@ def prepare_final_inputs(
             del profile
             gc.collect()
 
-    print("[4/5] Строю два годовых профиля")
+    print("[4/5] Два годовых профиля")
     for anchor, path in paths.annual_profiles.items():
         if rebuild or not path.exists():
             profile = build_annual_features(data, users, anchor)
@@ -239,7 +238,7 @@ def prepare_final_inputs(
             del profile
             gc.collect()
 
-    print("[5/5] Строю девять профилей ритма")
+    print("[5/5] Девять профилей ритма")
     for index, (anchor, path) in enumerate(paths.cadence_profiles.items(), start=1):
         if rebuild or not path.exists():
             print(f"  [{index}/{len(paths.cadence_profiles)}] {anchor}")
@@ -495,7 +494,7 @@ def train_final_solution(
     submission_path: Path = FINAL_SUBMISSION_PATH,
     rebuild_inputs: bool = False,
 ) -> dict[str, object]:
-    """Полностью переобучает текущее финальное решение и создаёт CSV."""
+    """Переобучает две контрольные модели и создаёт контрольный CSV."""
     artifact_dir.mkdir(parents=True, exist_ok=True)
     submission_path.parent.mkdir(parents=True, exist_ok=True)
     paths = prepare_final_inputs(
@@ -503,7 +502,7 @@ def train_final_solution(
     )
     base_features, seasonal_features = _base_and_seasonal_features(paths)
 
-    print("[1/6] Загружаю финальный тестовый срез")
+    print("[1/6] Итоговый тестовый срез")
     test = load_snapshot_blocks(
         snapshot_path=paths.snapshots[TEST_ANCHOR],
         seasonal_profile_path=paths.seasonal_profiles[TEST_ANCHOR],
@@ -520,7 +519,7 @@ def train_final_solution(
     annual_features = [*base_features, *seasonal_features, *ANNUAL_FEATURES]
     cadence_features = [*annual_features, *CADENCE_FEATURES]
 
-    print("[2/6] Обучаю годовую модель")
+    print("[2/6] Годовая модель")
     matrix, target, names = load_training_matrix(
         paths=paths,
         base_features=base_features,
@@ -542,7 +541,7 @@ def train_final_solution(
     del annual_model, annual_test
     gc.collect()
 
-    print("[3/6] Обучаю модель ритма")
+    print("[3/6] Модель ритма")
     matrix, target, names = load_training_matrix(
         paths=paths,
         base_features=base_features,
@@ -564,7 +563,7 @@ def train_final_solution(
     del cadence_test
     gc.collect()
 
-    print("[4/6] Смешиваю прогнозы 25/75")
+    print("[4/6] Прогнозы 25/75")
     blend_prediction = log_blend(annual_prediction, cadence_prediction)
     predictions = pd.DataFrame(
         {
@@ -579,7 +578,7 @@ def train_final_solution(
         submission_path, index=False
     )
 
-    print("[5/6] Сохраняю важности и сводку")
+    print("[5/6] Важности признаков и сводка")
     groups = (
         ["base"] * len(base_features)
         + ["seasonal"] * len(seasonal_features)
@@ -630,7 +629,7 @@ def train_final_solution(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    print("[6/6] Независимо проверяю сохранённый файл")
+    print("[6/6] Проверка сохранённого файла")
     validation = validate_saved_solution(
         artifact_dir=artifact_dir, submission_path=submission_path, deep=True
     )
@@ -649,7 +648,7 @@ def run_final_solution(
     artifact_dir: Path = FINAL_SOLUTION_DIR,
     submission_path: Path = FINAL_SUBMISSION_PATH,
 ) -> dict[str, object]:
-    """Возвращает готовый результат или полностью переобучает решение."""
+    """Загружает готовый контрольный результат или переобучает его."""
     summary_path = artifact_dir / "summary.json"
     if not retrain and summary_path.exists() and submission_path.exists():
         validate_saved_solution(
